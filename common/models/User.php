@@ -9,6 +9,7 @@ use yii\behaviors\AttributeBehavior;
 use yii\behaviors\TimestampBehavior;
 use yii\db\ActiveRecord;
 use yii\helpers\ArrayHelper;
+use yii\rbac\DbManager;
 use yii\web\IdentityInterface;
 
 /**
@@ -48,6 +49,7 @@ class User extends ActiveRecord implements IdentityInterface
 
     public $company;
     public $application_id;
+    CONST SUPER_ADMIN = 'super_admin';
     /**
      * @inheritdoc
      */
@@ -269,6 +271,23 @@ class User extends ActiveRecord implements IdentityInterface
     /**
      * @return string
      */
+
+
+
+    public static function getUserRole($user_id)
+    {
+        $rbac = new DbManager;
+        $model = $rbac->getRolesByUser($user_id);
+        if ($model) {
+            foreach ($model as $role)
+                $roles[] = $role->name;
+
+            $userRole = count($roles) === 1 ? $roles[0] : $roles;
+
+            return $userRole;
+        }
+    }
+
     public function getPublicIdentity()
     {
         if ($this->userProfile && $this->userProfile->getFullname()) {
