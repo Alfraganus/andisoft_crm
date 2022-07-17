@@ -12,8 +12,10 @@ return [
     'bootstrap' => ['log'],
     'controllerNamespace' => 'frontend\controllers',
     'components' => [
+
         'request' => [
             'csrfParam' => '_csrf-frontend',
+            'baseUrl' => '/',
         ],
         'user' => [
             'identityClass' => 'common\models\User',
@@ -36,14 +38,20 @@ return [
         'errorHandler' => [
             'errorAction' => 'site/error',
         ],
-        /*
+
         'urlManager' => [
+            'baseUrl' => '/',
             'enablePrettyUrl' => true,
             'showScriptName' => false,
             'rules' => [
             ],
         ],
-        */
+
+    ],
+    'modules' => [
+        'cabinet' => [
+            'class' => 'frontend\modules\cabinet\Module',
+        ],
     ],
     'params' => $params,
 ];

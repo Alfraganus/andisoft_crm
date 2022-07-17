@@ -2,10 +2,13 @@
 
 namespace common\models;
 
+use common\commands\AddToTimelineCommand;
+use common\models\query\UserQuery;
 use Yii;
-use yii\base\NotSupportedException;
+use yii\behaviors\AttributeBehavior;
 use yii\behaviors\TimestampBehavior;
 use yii\db\ActiveRecord;
+use yii\helpers\ArrayHelper;
 use yii\web\IdentityInterface;
 
 /**
@@ -14,144 +17,202 @@ use yii\web\IdentityInterface;
  * @property integer $id
  * @property string $username
  * @property string $password_hash
- * @property string $password_reset_token
- * @property string $verification_token
  * @property string $email
  * @property string $auth_key
+ * @property string $access_token
+ * @property string $oauth_client
+ * @property string $oauth_client_user_id
+ * @property string $publicIdentity
  * @property integer $status
  * @property integer $created_at
  * @property integer $updated_at
+ * @property integer $company
+ * @property integer $application_id
+ * @property integer $logged_at
  * @property string $password write-only password
+ *
+ * @property \common\models\UserProfile $userProfile
  */
 class User extends ActiveRecord implements IdentityInterface
 {
-    const STATUS_DELETED = 0;
-    const STATUS_INACTIVE = 9;
+    const STATUS_NOT_ACTIVE = 0;
     const STATUS_ACTIVE = 10;
+    const STATUS_DELETED = 99;
 
+    const ROLE_USER = 'user';
+    const ROLE_MANAGER = 'manager';
+    const ROLE_ADMINISTRATOR = 'administrator';
 
+    const EVENT_AFTER_SIGNUP = 'afterSignup';
+    const EVENT_AFTER_LOGIN = 'afterLogin';
+
+    public $company;
+    public $application_id;
     /**
-     * {@inheritdoc}
+     * @inheritdoc
      */
     public static function tableName()
     {
         return '{{%user}}';
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function behaviors()
-    {
-        return [
-            TimestampBehavior::className(),
-        ];
-    }
 
-    /**
-     * {@inheritdoc}
-     */
+
     public function rules()
     {
         return [
-            ['status', 'default', 'value' => self::STATUS_INACTIVE],
-            ['status', 'in', 'range' => [self::STATUS_ACTIVE, self::STATUS_INACTIVE, self::STATUS_DELETED]],
+            [['username', 'email'], 'unique'],
+            [['username'], 'required'],
+            [['company','application_id'], 'integer'],
+            ['status', 'default', 'value' => self::STATUS_ACTIVE],
+        ];
+    }
+
+    public function attributeLabels()
+    {
+        return [
+            'username' => Yii::t('common', 'Username'),
+            'email' => Yii::t('common', 'E-mail'),
+            'status' => Yii::t('common', 'Status'),
+            'access_token' => Yii::t('common', 'API access token'),
+            'created_at' => Yii::t('common', 'Created at'),
+            'updated_at' => Yii::t('common', 'Updated at'),
+            'logged_at' => Yii::t('common', 'Last login'),
         ];
     }
 
     /**
-     * {@inheritdoc}
+     * @inheritdoc
      */
     public static function findIdentity($id)
     {
-        return static::findOne(['id' => $id, 'status' => self::STATUS_ACTIVE]);
+        return static::find()
+            ->active()
+            ->andWhere(['id' => $id])
+            ->one();
+    }
+
+
+    public static function checkUserState($token)
+    {
+        $userData = self::findIdentityByAccessToken($token);
+        if (empty($userData)) {
+            return [
+                'success' => false,
+                'message' => 'User not found'
+            ];
+        }
+        return [
+            'success' => true,
+            'user' => $userData,
+        ];
+    }
+
+    public function generateAuthKey()
+    {
+        $this->auth_key = Yii::$app->security->generateRandomString();
+    }
+
+    public function generateEmailVerificationToken()
+    {
+        $this->access_token = Yii::$app->security->generateRandomString() . '_' . time();
     }
 
     /**
-     * {@inheritdoc}
+     * @return UserQuery
+     */
+    public static function find()
+    {
+        return new UserQuery(get_called_class());
+    }
+
+    /**
+     * @inheritdoc
      */
     public static function findIdentityByAccessToken($token, $type = null)
     {
-        throw new NotSupportedException('"findIdentityByAccessToken" is not implemented.');
+        return static::find()
+            ->active()
+            ->andWhere(['access_token' => $token])
+            ->one();
     }
 
     /**
      * Finds user by username
      *
      * @param string $username
-     * @return static|null
+     * @return User|array|null
      */
     public static function findByUsername($username)
     {
-        return static::findOne(['username' => $username, 'status' => self::STATUS_ACTIVE]);
+        return static::find()
+            ->active()
+            ->andWhere(['username' => $username])
+            ->one();
     }
 
     /**
-     * Finds user by password reset token
+     * Finds user by username or email
      *
-     * @param string $token password reset token
-     * @return static|null
+     * @param string $login
+     * @return User|array|null
      */
-    public static function findByPasswordResetToken($token)
+    public static function findByLogin($login)
     {
-        if (!static::isPasswordResetTokenValid($token)) {
-            return null;
-        }
-
-        return static::findOne([
-            'password_reset_token' => $token,
-            'status' => self::STATUS_ACTIVE,
-        ]);
+        return static::find()
+            ->active()
+            ->andWhere(['or', ['username' => $login], ['email' => $login]])
+            ->one();
     }
 
     /**
-     * Finds user by verification email token
-     *
-     * @param string $token verify email token
-     * @return static|null
+     * @inheritdoc
      */
-    public static function findByVerificationToken($token) {
-        return static::findOne([
-            'verification_token' => $token,
-            'status' => self::STATUS_INACTIVE
-        ]);
-    }
-
-    /**
-     * Finds out if password reset token is valid
-     *
-     * @param string $token password reset token
-     * @return bool
-     */
-    public static function isPasswordResetTokenValid($token)
+    public function behaviors()
     {
-        if (empty($token)) {
-            return false;
-        }
+        return [
+            TimestampBehavior::class,
+            'auth_key' => [
+                'class' => AttributeBehavior::class,
+                'attributes' => [
+                    ActiveRecord::EVENT_BEFORE_INSERT => 'auth_key'
+                ],
+                'value' => Yii::$app->getSecurity()->generateRandomString()
+            ],
 
-        $timestamp = (int) substr($token, strrpos($token, '_') + 1);
-        $expire = Yii::$app->params['user.passwordResetTokenExpire'];
-        return $timestamp + $expire >= time();
+        ];
     }
 
+
+
     /**
-     * {@inheritdoc}
+     * Returns user statuses list
+     * @return array|mixed
      */
-    public function getId()
+    public static function statuses()
     {
-        return $this->getPrimaryKey();
+        return [
+            self::STATUS_ACTIVE => Yii::t('common', 'Active'),
+            self::STATUS_NOT_ACTIVE => Yii::t('common', 'Not Active'),
+            self::STATUS_DELETED => Yii::t('common', 'Deleted')
+        ];
     }
 
     /**
-     * {@inheritdoc}
+     * @inheritdoc
      */
-    public function getAuthKey()
+
+
+    /**
+     * @return \yii\db\ActiveQuery
+     */
+    public function getUserProfile()
     {
-        return $this->auth_key;
+        return $this->hasOne(UserProfile::class, ['user_id' => 'id']);
     }
 
     /**
-     * {@inheritdoc}
+     * @inheritdoc
      */
     public function validateAuthKey($authKey)
     {
@@ -159,14 +220,22 @@ class User extends ActiveRecord implements IdentityInterface
     }
 
     /**
+     * @inheritdoc
+     */
+    public function getAuthKey()
+    {
+        return $this->auth_key;
+    }
+
+    /**
      * Validates password
      *
      * @param string $password password to validate
-     * @return bool if password provided is valid for current user
+     * @return boolean if password provided is valid for current user
      */
     public function validatePassword($password)
     {
-        return Yii::$app->security->validatePassword($password, $this->password_hash);
+        return Yii::$app->getSecurity()->validatePassword($password, $this->password_hash);
     }
 
     /**
@@ -176,38 +245,46 @@ class User extends ActiveRecord implements IdentityInterface
      */
     public function setPassword($password)
     {
-        $this->password_hash = Yii::$app->security->generatePasswordHash($password);
+        $this->password_hash = Yii::$app->getSecurity()->generatePasswordHash($password);
     }
 
     /**
-     * Generates "remember me" authentication key
+     * Creates user profile and application event
+     * @param array $profileData
      */
-    public function generateAuthKey()
+    public function afterSignup(array $profileData = [])
     {
-        $this->auth_key = Yii::$app->security->generateRandomString();
+        $this->refresh();
+        $profile = new UserProfile();
+        $profile->locale = Yii::$app->language;
+        $profile->load($profileData, '');
+        $this->link('userProfile', $profile);
+        $this->trigger(self::EVENT_AFTER_SIGNUP);
+        // Default role
+        $auth = Yii::$app->authManager;
+        $auth->assign($auth->getRole(User::ROLE_USER), $this->getId());
+    }
+
+
+    /**
+     * @return string
+     */
+    public function getPublicIdentity()
+    {
+        if ($this->userProfile && $this->userProfile->getFullname()) {
+            return $this->userProfile->getFullname();
+        }
+        if ($this->username) {
+            return $this->username;
+        }
+        return $this->email;
     }
 
     /**
-     * Generates new password reset token
+     * @inheritdoc
      */
-    public function generatePasswordResetToken()
+    public function getId()
     {
-        $this->password_reset_token = Yii::$app->security->generateRandomString() . '_' . time();
-    }
-
-    /**
-     * Generates new token for email verification
-     */
-    public function generateEmailVerificationToken()
-    {
-        $this->verification_token = Yii::$app->security->generateRandomString() . '_' . time();
-    }
-
-    /**
-     * Removes password reset token
-     */
-    public function removePasswordResetToken()
-    {
-        $this->password_reset_token = null;
+        return $this->getPrimaryKey();
     }
 }
