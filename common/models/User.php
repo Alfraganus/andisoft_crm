@@ -47,9 +47,10 @@ class User extends ActiveRecord implements IdentityInterface
     const EVENT_AFTER_SIGNUP = 'afterSignup';
     const EVENT_AFTER_LOGIN = 'afterLogin';
 
-    public $company;
+    public $password;
     public $application_id;
     CONST SUPER_ADMIN = 'super_admin';
+    CONST PLAYSTATION_ADMIN = 'playstation_admin';
     /**
      * @inheritdoc
      */
@@ -65,7 +66,7 @@ class User extends ActiveRecord implements IdentityInterface
         return [
             [['username', 'email'], 'unique'],
             [['username'], 'required'],
-            [['company','application_id'], 'integer'],
+            [['password'], 'string'],
             ['status', 'default', 'value' => self::STATUS_ACTIVE],
         ];
     }
@@ -254,24 +255,6 @@ class User extends ActiveRecord implements IdentityInterface
      * Creates user profile and application event
      * @param array $profileData
      */
-    public function afterSignup(array $profileData = [])
-    {
-        $this->refresh();
-        $profile = new UserProfile();
-        $profile->locale = Yii::$app->language;
-        $profile->load($profileData, '');
-        $this->link('userProfile', $profile);
-        $this->trigger(self::EVENT_AFTER_SIGNUP);
-        // Default role
-        $auth = Yii::$app->authManager;
-        $auth->assign($auth->getRole(User::ROLE_USER), $this->getId());
-    }
-
-
-    /**
-     * @return string
-     */
-
 
 
     public static function getUserRole($user_id)

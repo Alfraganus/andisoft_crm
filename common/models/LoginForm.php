@@ -4,6 +4,7 @@ namespace common\models;
 
 use Yii;
 use yii\base\Model;
+use yii\helpers\Url;
 use yii\rbac\DbManager;
 
 /**
@@ -58,15 +59,18 @@ class LoginForm extends Model
 
 
 
-    public function login()
+    public function login($loginType)
     {
         if ($this->validate()) {
             $user = $this->getUser();
-            if(User::getUserRole($user['id']) == User::SUPER_ADMIN) {
+
+            if (User::getUserRole($user['id']) == $loginType) {
                 return Yii::$app->user->login($this->getUser(), $this->rememberMe ? 3600 * 24 * 30 : 0);
             }
+        } else {
+            var_dump('no validatsiya');
         }
-        
+
         return false;
     }
 

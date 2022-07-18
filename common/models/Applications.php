@@ -15,6 +15,8 @@ use yii\debug\models\search\Profile;
  */
 class Applications extends \yii\db\ActiveRecord
 {
+
+    CONST APP_PLAYSTATION = 1;
     /**
      * {@inheritdoc}
      */

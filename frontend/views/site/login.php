@@ -1,41 +1,72 @@
 <?php
 
-/** @var yii\web\View $this */
-/** @var yii\bootstrap4\ActiveForm $form */
-/** @var \common\models\LoginForm $model */
-
-use yii\bootstrap4\Html;
 use yii\bootstrap4\ActiveForm;
 
-$this->title = 'Login';
-$this->params['breadcrumbs'][] = $this->title;
-?>
-<div class="site-login">
-    <h1><?= Html::encode($this->title) ?></h1>
+$this->title = 'Login'; ?>
 
-    <p>Please fill out the following fields to login:</p>
+<div class="container-fluid p-0">
+    <div class="row no-gutters">
+        <div class="col-lg-4">
+            <div class="authentication-page-content p-4 d-flex align-items-center min-vh-100">
+                <div class="w-100">
+                    <div class="row justify-content-center">
+                        <div class="col-lg-9">
+                            <div class="text-center">
+                                <div>
+                                    <a href="<?= Yii::$app->homeUrl; ?>" class="logo">
+                                        <img src="/images/playstationlogo.png" height="200" alt="logo">
+                                    </a>
+                                </div>
+                                <h4 class="font-size-18 mt-4">Xush kelibsiz !</h4>
+                                <p class="text-muted">Tizimga kirish uchun login va parolni kiriting</p>
+                            </div>
 
-    <div class="row">
-        <div class="col-lg-5">
-            <?php $form = ActiveForm::begin(['id' => 'login-form']); ?>
+                            <?php $form = ActiveForm::begin(['id' => 'login-form']); ?>
 
-                <?= $form->field($model, 'username')->textInput(['autofocus' => true]) ?>
+                            <div class="p-2 mt-5">
+                                <form class="form-horizontal">
 
-                <?= $form->field($model, 'password')->passwordInput() ?>
+                                    <div class="form-group auth-form-group-custom mb-4">
+                                        <i class="ri-user-2-line auti-custom-input-icon"></i>
+                                        <label for="username">Login</label>
+                                        <?= $form->field($model, 'username', ['template' => '{input} {error} {hint}'])
+                                            ->textInput([
+                                                'autofocus' => true,
+                                                'class' => 'input-lg form-control',
+                                                'placeholder' => 'Loginni kiriting...',
+                                            ])->label(false); ?>
+                                    </div>
 
-                <?= $form->field($model, 'rememberMe')->checkbox() ?>
+                                    <div class="form-group auth-form-group-custom mb-4">
+                                        <i class="ri-lock-2-line auti-custom-input-icon"></i>
+                                        <label for="userpassword">Parol</label>
+                                        <?= $form->field($model, 'password', ['template' => '{input} {error} {hint}'])
+                                            ->passwordInput([
+                                                'autofocus' => true,
+                                                'class' => 'input-lg form-control',
+                                                'placeholder' => 'Parolni kiriting',
+                                            ])->label(false); ?>
+                                    </div>
 
-                <div style="color:#999;margin:1em 0">
-                    If you forgot your password you can <?= Html::a('reset it', ['site/request-password-reset']) ?>.
-                    <br>
-                    Need new verification email? <?= Html::a('Resend', ['site/resend-verification-email']) ?>
+                                    <div class="mt-4 text-center">
+                                        <button class="btn btn-primary w-md waves-effect waves-light" type="submit">
+                                            Kirish
+                                        </button>
+                                    </div>
+
+                                </form>
+                            </div>
+                            <?php ActiveForm::end(); ?>
+
+                        </div>
+                    </div>
                 </div>
-
-                <div class="form-group">
-                    <?= Html::submitButton('Login', ['class' => 'btn btn-primary', 'name' => 'login-button']) ?>
-                </div>
-
-            <?php ActiveForm::end(); ?>
+            </div>
+        </div>
+        <div class="col-lg-8">
+            <div class="authentication-bg" style="background-image: url('../images/log_background.jpg');">
+                <div style="opacity: .3" class="bg-overlay"></div>
+            </div>
         </div>
     </div>
 </div>
